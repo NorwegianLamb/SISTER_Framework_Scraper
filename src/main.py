@@ -12,8 +12,10 @@ import time
 
 base_url = "https://portalebanchedaticdl.visura.it"
 session = requests.Session()
+session.debug = True # Comment in PROD
 
 # -------------------------------------------------------------------------------------------------------------------------------
+
 
 def getResponseInfo(response, getContent=False):
     print(f"Response headers: {response.headers}")
@@ -21,6 +23,7 @@ def getResponseInfo(response, getContent=False):
     print(f"Cookies:\n{cookies_str}")
     if(getContent):
         print(f"Content:\n{response.text}")
+
 
 
 def setBaseCookies():
@@ -33,21 +36,34 @@ def setBaseCookies():
 
 
 
+def temp_LogoutButtonPresent(response_text):
+    soup = BeautifulSoup(response_text, 'html.parser')
+    logout_button = soup.find('input', {'type': 'button', 'value': 'Logout', 'onclick': "location.href='/actionLogOutNuovoVisura.do?url=sito'"})
+    print(logout_button is not None)
+
+
+
 def login(username, password):
     # setting basic SESSION token
     setBaseCookies()
-    # defining POST request data & sending it
-    base_url_login = base_url + "/authenticateNuovoVisura.do"
+    # defining POST request data
+    base_url_login = base_url + "/authenticateNuovoVisura.do?url=sito"
     login_data = {
-        'username': username,
+        'userName': username,
         'password': password,
         'firstPage': '/homepageBancheDatiActionNuovoVisura.do'
     }
+    # sending LOGIN POST request
     login_response = session.post(base_url_login, data=login_data)
     if login_response.status_code == 200:
-        # getResponseInfo(login_response, True)
         if "Credenziali errate" in login_response.text:
             print("Invalid credentials message found.")
+            print("Request:")
+            print(login_response.request.headers)
+            print(login_response.request.body)
+        else:
+            # getResponseInfo(login_response, True)
+            temp_LogoutButtonPresent(login_response.text)
     else:
         print("volevi pt.2, es ist nicht einfach :'c")
     
@@ -56,17 +72,17 @@ def login(username, password):
 
 
 
-def search_data(query):
+def searchData(query):
     data = {}
     response = session.post(base_url, data=data)
     if response.status_code == 200:
-       download_file()
+       downloadFile()
     else:
         pass
 
 
 
-def download_file(url):
+def downloadFile(url):
     pass
 
 
@@ -78,7 +94,7 @@ def logout():
     logout_url = base_url + "/actionLogOutNuovoVisura.do?url=sito"
     logout_response = session.get(logout_url)
     if logout_response.status_code == 200:
-        # getResponseInfo(logout_response)
+        # getResponseInfo(logout_response, True)
         pass
     else:
         print("bro how can you be so bad T_T")
