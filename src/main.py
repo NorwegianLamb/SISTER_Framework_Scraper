@@ -14,7 +14,7 @@ base_url = "https://portalebanchedaticdl.visura.it"
 session = requests.Session()
 session.debug = True # Comment in PROD
 
-# -------------------------------------------------------------------------------------------------------------------------------
+# CHECKER_FUNCS -------------------------------------------------------------------------------------------------------------------------------
 
 
 def getResponseInfo(response, getContent=False):
@@ -42,6 +42,8 @@ def temp_LogoutButtonPresent(response_text):
     print(logout_button is not None)
 
 
+# LOGIN/LOGOUT -------------------------------------------------------------------------------------------------------------------------------
+
 
 def login(username, password):
     # setting basic SESSION token
@@ -64,26 +66,9 @@ def login(username, password):
         else:
             # getResponseInfo(login_response, True)
             temp_LogoutButtonPresent(login_response.text)
+            logout()
     else:
         print("volevi pt.2, es ist nicht einfach :'c")
-    
-    # temp
-    logout()
-
-
-
-def searchData(query):
-    data = {}
-    response = session.post(base_url, data=data)
-    if response.status_code == 200:
-       downloadFile()
-    else:
-        pass
-
-
-
-def downloadFile(url):
-    pass
 
 
 
@@ -103,7 +88,24 @@ def logout():
     print("Logout and Sessions closed, goodbye :)")
 
 
-# -------------------------------------------------------------------------------------------------------------------------------
+# QUERY/PARSER -------------------------------------------------------------------------------------------------------------------------------
+
+
+def searchData(query):
+    data = {}
+    response = session.post(base_url, data=data)
+    if response.status_code == 200:
+       downloadFile()
+    else:
+        pass
+
+
+
+def downloadFile(url):
+    pass
+
+
+# ENTRY_POINT -------------------------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     #'''
