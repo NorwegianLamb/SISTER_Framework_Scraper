@@ -15,12 +15,12 @@ session = requests.Session()
 
 # -------------------------------------------------------------------------------------------------------------------------------
 
-def getResponseInfo(response, getContent=True):
+def getResponseInfo(response, getContent=False):
     print(f"Response headers: {response.headers}")
-    if(getContent):
-        print(f"Response content: {response.text}") # .content if binary data
     cookies_str = "\n".join([str(cookie) for cookie in session.cookies]) # this for sure has a better way to be done
     print(f"Cookies:\n{cookies_str}")
+    if(getContent):
+        print(f"Content:\n{response.text}")
 
 
 def setBaseCookies():
@@ -45,7 +45,9 @@ def login(username, password):
     }
     login_response = session.post(base_url_login, data=login_data)
     if login_response.status_code == 200:
-        getResponseInfo(login_response)
+        # getResponseInfo(login_response, True)
+        if "Credenziali errate" in login_response.text:
+            print("Invalid credentials message found.")
     else:
         print("volevi pt.2, es ist nicht einfach :'c")
     
@@ -76,7 +78,8 @@ def logout():
     logout_url = base_url + "/actionLogOutNuovoVisura.do?url=sito"
     logout_response = session.get(logout_url)
     if logout_response.status_code == 200:
-        getResponseInfo(logout_response, False)
+        # getResponseInfo(logout_response)
+        pass
     else:
         print("bro how can you be so bad T_T")
     # closing requests.Session()
