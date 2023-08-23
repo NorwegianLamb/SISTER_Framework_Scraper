@@ -52,6 +52,10 @@ def login(username, password):
 
 
 def logout():
+    while("Logout" not in driver.page_source):
+        print("mh..")
+        time.sleep(1)
+
     # Logging out
     time_to_wait = 2
     print(f"\nWaiting {time_to_wait} seconds for the logout to AVOID detection...")
@@ -68,40 +72,22 @@ def logout():
 def FW_login():
     # Entering the framework ----------------------------------------------------------------------------------------------------
     try:
-        catasto_e_conservatoria = WebDriverWait(driver, 15).until(
+        open_FW = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="prodotti"]/div/article/form/div[1]/div[2]/table[2]/tbody/tr/td[2]/a[2]'))
         )
     finally:
-        catasto_e_conservatoria.click()
+        open_FW.click()
 
-    # Moving in the DOM pt.1 of 3 ----------------------------------------------------------------------------------------------------
-    try:
-        consultazioni_e_certificazioni = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[1]/a'))
-        )
-    finally:
-        consultazioni_e_certificazioni.click()
-
+    # Accepting requests ----------------------------------------------------------------------------------------------------
+    var = True
+    while(var):
+        if("IDENTITA' FEDERATA" in driver.page_source):
+            var = False
+        else:
+            time.sleep(1)
+    
     driver.get('https://portalebanchedatij.visura.it/Visure/SceltaServizio.do?tipo=/T/TM/VCVC_')
     
-    """
-    # Moving in the DOM pt.2 of 3 ----------------------------------------------------------------------------------------------------
-    try:
-        visure_catastali = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="submenu-1"]/li[1]/a'))
-        )
-    finally:
-        visure_catastali.click()
-
-    # Moving in the DOM pt.3 of 3 ----------------------------------------------------------------------------------------------------
-    try:
-        conferma_lettura = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/table/tbody/tr[4]/td/table/tbody/tr/td[2]/a'))
-        )
-    finally:
-        conferma_lettura.click()
-
-    # Inserting DOM Options ----------------------------------------------------------------------------------------------------
     try:
         selezione_ufficio_provinciale = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody/tr/td[2]/select'))
@@ -112,10 +98,42 @@ def FW_login():
         applica_button = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/input')
         applica_button.click()
     
-    #'//*[@id="menu-left"]/li[7]/a'
-    """
+    # Getting into "NOTE" Section ----------------------------------------------------------------------------------------------------
+    var = True
+    while(var):
+        if("Ufficio provinciale di: MILANO Territorio" in driver.page_source):
+            var = False
+        else:
+            time.sleep(1)
+    driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
+
+    # Closing FW ----------------------------------------------------------------------------------------------------
+    FW_logout()
+        
+
 def FW_logout():
-    pass
+    # Logging out
+    time_to_wait = 2
+    print(f"\nWaiting {time_to_wait} seconds to close the FW to AVOID detection...")
+    time.sleep(time_to_wait)
+
+    driver.get('https://portalebanchedatij.visura.it/framesetAgenziaTerritorioIF.htm')
+    var = True
+    while(var):
+        if("IDENTITA' FEDERATA" in driver.page_source):
+            var = False
+        else:
+            time.sleep(1)
+
+    print("Switching to 1 of 2 Frames -> Barretta")
+    driver.switch_to.frame(driver.find_element(By.NAME, "BARRETTA"))
+    time.sleep(2)
+    print("Switching to 2 of 2 Frames -> mainFrameVISURA")
+    driver.switch_to.frame(driver.find_element(By.NAME, "mainFrameVISURA"))
+    time.sleep(2)
+    print("Exiting the FW...")
+    driver.execute_script("vai('chiudi')")
+    logout()
 
 # --------------------------------------------- QUERY_FIND/DOWNLOAD/ANALYZE FUNCTIONS -------------------------------------------------------------------------------
 
