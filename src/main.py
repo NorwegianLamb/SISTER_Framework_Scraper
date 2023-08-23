@@ -12,6 +12,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.select import Select
 # Other LIBS
 import requests
 from bs4 import BeautifulSoup
@@ -46,7 +47,8 @@ def login(username, password):
     if "Credenziali errate" in driver.page_source:
         print("Invalid credentials!")
     else:
-        logout() # change to FW_Login()
+        FW_login()
+        #logout()
 
 
 def logout():
@@ -64,8 +66,54 @@ def logout():
 # --------------------------------------------- FW_LOGIN/LOGOUT FUNCTIONS ----------------------------------------------------------------------------------------
 
 def FW_login():
-    pass
+    # Entering the framework ----------------------------------------------------------------------------------------------------
+    try:
+        catasto_e_conservatoria = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="prodotti"]/div/article/form/div[1]/div[2]/table[2]/tbody/tr/td[2]/a[2]'))
+        )
+    finally:
+        catasto_e_conservatoria.click()
 
+    # Moving in the DOM pt.1 of 3 ----------------------------------------------------------------------------------------------------
+    try:
+        consultazioni_e_certificazioni = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[1]/a'))
+        )
+    finally:
+        consultazioni_e_certificazioni.click()
+
+    driver.get('https://portalebanchedatij.visura.it/Visure/SceltaServizio.do?tipo=/T/TM/VCVC_')
+    
+    """
+    # Moving in the DOM pt.2 of 3 ----------------------------------------------------------------------------------------------------
+    try:
+        visure_catastali = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="submenu-1"]/li[1]/a'))
+        )
+    finally:
+        visure_catastali.click()
+
+    # Moving in the DOM pt.3 of 3 ----------------------------------------------------------------------------------------------------
+    try:
+        conferma_lettura = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/table/tbody/tr[4]/td/table/tbody/tr/td[2]/a'))
+        )
+    finally:
+        conferma_lettura.click()
+
+    # Inserting DOM Options ----------------------------------------------------------------------------------------------------
+    try:
+        selezione_ufficio_provinciale = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody/tr/td[2]/select'))
+        )
+    finally:
+        select_element = Select(selezione_ufficio_provinciale)
+        select_element.select_by_value('MILANO Territorio-MI')
+        applica_button = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/input')
+        applica_button.click()
+    
+    #'//*[@id="menu-left"]/li[7]/a'
+    """
 def FW_logout():
     pass
 
