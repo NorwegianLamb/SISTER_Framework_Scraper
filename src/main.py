@@ -38,11 +38,13 @@ base_url = "https://portalebanchedaticdl.visura.it"
 
 # --------------------------------------------- HELPER FUNCTIONS --------------------------------------------------------------------------------------------------
 
-def renameLastDownload():
+def renameLastDownload(nota):
     all_files = glob.glob(os.path.join(download_directory, '*'))
     sorted_files = sorted(all_files, key=os.path.getmtime, reverse=True)
     latest_file = sorted_files[0]
-    new_filename = "new_filename.pdf"
+    new_filename = f"Nota{nota}.pdf"
+    new_file_path = os.path.join(download_directory, new_filename)
+    os.rename(latest_file, new_file_path)
 
 # --------------------------------------------- LOGIN/LOGOUT FUNCTIONS --------------------------------------------------------------------------------------------------
 
