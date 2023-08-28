@@ -18,14 +18,31 @@ import requests
 from bs4 import BeautifulSoup
 import argparse
 import time
+import os
+import glob
 
 # --------------------------------------------- GLOBAL --------------------------------------------------------------------------------------------------
+
+# Select current dir
+current_directory = os.getcwd()
+download_directory = os.path.join(current_directory, 'data')
 
 # Headless chrome browser + OPTIONS() settings + base_url
 chrome_options = Options()
 chrome_options.add_experimental_option("detach", True)
+chrome_options.add_experimental_option("prefs", {
+  "download.default_directory": f"{download_directory}"
+})
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 base_url = "https://portalebanchedaticdl.visura.it"
+
+# --------------------------------------------- HELPER FUNCTIONS --------------------------------------------------------------------------------------------------
+
+def renameLastDownload():
+    all_files = glob.glob(os.path.join(download_directory, '*'))
+    sorted_files = sorted(all_files, key=os.path.getmtime, reverse=True)
+    latest_file = sorted_files[0]
+    new_filename = "new_filename.pdf"
 
 # --------------------------------------------- LOGIN/LOGOUT FUNCTIONS --------------------------------------------------------------------------------------------------
 
@@ -52,6 +69,7 @@ def login(username, password):
 
 
 def logout():
+    driver.switch_to.default_content()
     while("Logout" not in driver.page_source):
         print("mh..")
         time.sleep(1)
@@ -107,8 +125,26 @@ def FW_login():
             time.sleep(1)
     driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
 
-    # Closing FW ----------------------------------------------------------------------------------------------------
-    FW_logout()
+    # Inserting NOTE info ----------------------------------------------------------------------------------------------------
+    try:
+        selezione_comune = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
+        )
+    finally:
+        select_element_2 = Select(selezione_comune)
+        select_element_2.select_by_value('F205#MILANO#0#0')
+        anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
+        anno_input.send_keys('2023')
+        scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
+        scegli_tipologia.click()
+
+    try:
+        selezione_voltura = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
+        )
+    finally:
+        select_element_3 = Select(selezione_voltura)
+        select_element_3.select_by_value('01')
         
 
 def FW_logout():
@@ -137,11 +173,89 @@ def FW_logout():
 
 # --------------------------------------------- QUERY_FIND/DOWNLOAD/ANALYZE FUNCTIONS -------------------------------------------------------------------------------
 
-def queryFind():
-    pass
+def queryFind(n, N):
+    n = int(n)
+    N = int(N)
+    time_to_sleep = 1
+    while(n <= N):
+        time.sleep(time_to_sleep)
+        try:
+            input_nota = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
+            )
+        finally:
+            input_nota.clear()
+            input_nota.send_keys(n)
+            driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
+        # CHECK if the NOTE exists:
+        try:
+            undo_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+            )
+        finally:
+            if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source):
+                pass
+            else:
+                print(f"Nota trovata: {n}")
+                print("-----------------------------------------------------------------------------")
+                queryInspect()
+                print("-----------------------------------------------------------------------------\n")
+                try:
+                    undo_button = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+                    )
+                finally:
+                    pass
+            undo_button.click()
+        n += 1
+
+def queryInspect():
+    # save the INFO-table to start saving data for the CSV/EXCEL file
+    try:
+        note_table = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr'))
+        )
+    finally:
+        td_text = {
+            "tipo":"",
+            "numero":"",
+            "prog":"",
+            "anno":"",
+            "datevalide":"",
+            "repertorio":"",
+            "causale":"",
+            "inattodal":"",
+            "descrizione":""
+        }
+        for key in td_text.keys():
+            td_element = driver.find_element(By.CSS_SELECTOR, f'td[headers="{key}"]')
+            print(f"{key}: {td_element.text}")
+        queryDownload()
+
 
 def queryDownload():
-    pass
+    try:
+        check_nota = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input[1]'))
+        )
+    finally:
+        check_nota.click()
+    # request the document
+    visura_nota = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input')
+    visura_nota.click()
+    # wait for it to load and save it
+    try:
+        save_doc = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[1]/td[1]/input'))
+        )
+    finally:
+        save_doc.click()
+        queryAnalyze()
+
+    # Exit DOC_DOWNLOAD_SECTION
+    back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
+    back_to_notes.click()
+    
 
 def queryAnalyze():
     pass
@@ -152,8 +266,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated scraper for the SISTER framework, it gathers the PDF files for property successions and parses them")
     parser.add_argument("-u", "--username", required=True, help="Username for login")
     parser.add_argument("-p", "--password", required=True, help="Password for login")
+    parser.add_argument("-n", "--numstart", required=True, help="beginning note number")
+    parser.add_argument("-N", "--numend", required=True, help="ending note number")
     args = parser.parse_args()
     login(args.username, args.password)
+    queryFind(args.numstart, args.numend)
+    FW_logout()
 
 # -------------------------------------- USEFUL to keep ------------------------------------------------------------------------------------------------------
 
