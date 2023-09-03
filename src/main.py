@@ -42,7 +42,7 @@ def renameLastDownload(nota):
     all_files = glob.glob(os.path.join(download_directory, '*'))
     sorted_files = sorted(all_files, key=os.path.getmtime, reverse=True)
     latest_file = sorted_files[0]
-    new_filename = f"Nota{nota}.pdf"
+    new_filename = f"nota-{nota}.pdf"
     new_file_path = os.path.join(download_directory, new_filename)
     os.rename(latest_file, new_file_path)
 
@@ -218,24 +218,15 @@ def queryInspect():
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr'))
         )
     finally:
-        td_text = {
-            "tipo":"",
-            "numero":"",
-            "prog":"",
-            "anno":"",
-            "datevalide":"",
-            "repertorio":"",
-            "causale":"",
-            "inattodal":"",
-            "descrizione":""
-        }
-        for key in td_text.keys():
-            td_element = driver.find_element(By.CSS_SELECTOR, f'td[headers="{key}"]')
-            print(f"{key}: {td_element.text}")
-        queryDownload()
+        td_headers = ["tipo","numero","prog","anno","datevalide","repertorio","causale","inattodal","descrizione"]
+        for header in td_headers:
+            td_element = driver.find_element(By.CSS_SELECTOR, f'td[headers="{header}"]')
+            print(f"{header}: {td_element.text}")
+        # download and rename the doc
+        queryDownload(driver.find_element(By.CSS_SELECTOR, f'td[headers="numero"]').text)
 
 
-def queryDownload():
+def queryDownload(nota):
     try:
         check_nota = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input[1]'))
@@ -252,14 +243,16 @@ def queryDownload():
         )
     finally:
         save_doc.click()
-        queryAnalyze()
+        # wait for 100%
+        renameLastDownload(nota)
+        queryAnalyze(nota)
 
     # Exit DOC_DOWNLOAD_SECTION
     back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
     back_to_notes.click()
     
 
-def queryAnalyze():
+def queryAnalyze(nota):
     pass
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------

@@ -11,4 +11,5 @@ def renameLastDownload(nota):
     new_file_path = os.path.join(download_directory, new_filename)
     os.rename(latest_file, new_file_path)
 
-renameLastDownload(1)
+header = ["prova"]
+print(f"aa='{header[0]}'")
