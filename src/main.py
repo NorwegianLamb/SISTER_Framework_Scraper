@@ -245,6 +245,8 @@ def queryInspect():
             print(f"{header}: {td_element.text}")
         # download and rename the doc
         queryDownload(driver.find_element(By.CSS_SELECTOR, f'td[headers="numero"]').text)
+        # queryDownload() could return all the ANALYZED info in the PDF file and add them to td_headers for loop text -> FULL LINE EXCEL
+        # + HYPERLINK TO FILE after downloaded, so it would make sense to do it in this order: INSPECT-DOWNLOAD-ANALYZE-PARSE (need to write this func)-back here -> save excel
 
 
 def queryDownload(nota):
