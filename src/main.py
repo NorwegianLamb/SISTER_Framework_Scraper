@@ -38,13 +38,22 @@ base_url = "https://portalebanchedaticdl.visura.it"
 
 # --------------------------------------------- HELPER FUNCTIONS --------------------------------------------------------------------------------------------------
 
-def renameLastDownload(nota):
-    all_files = glob.glob(os.path.join(download_directory, '*'))
-    sorted_files = sorted(all_files, key=os.path.getmtime, reverse=True)
-    latest_file = sorted_files[0]
-    new_filename = f"nota-{nota}.pdf"
-    new_file_path = os.path.join(download_directory, new_filename)
-    os.rename(latest_file, new_file_path)
+def awaitDownloadedFile():
+    file_downloaded = False
+    max_wait_time = 60
+    start_time = time.time()
+    while not file_downloaded and time.time() - start_time < max_wait_time:
+        # Check if the file exists in the download directory
+        all_files = glob.glob(os.path.join(download_directory, '*'))
+        if any(f.endswith('.crdownload') for f in all_files):
+            # .crdownload file exists, indicating the download is in progress
+            time.sleep(1)  # Wait for 1 second before checking again
+        elif any(f.endswith('.pdf') for f in all_files):
+            # .pdf file exists, indicating the download is complete
+            file_downloaded = True
+        else:
+            time.sleep(1)  # Wait for 1 second before checking again
+    return file_downloaded
 
 # --------------------------------------------- LOGIN/LOGOUT FUNCTIONS --------------------------------------------------------------------------------------------------
 
@@ -243,16 +252,15 @@ def queryDownload(nota):
         )
     finally:
         save_doc.click()
-        # wait for 100%
-        renameLastDownload(nota)
-        queryAnalyze(nota)
+        """if(awaitDownloadedFile()):
+            queryAnalyze()"""
 
     # Exit DOC_DOWNLOAD_SECTION
     back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
     back_to_notes.click()
     
 
-def queryAnalyze(nota):
+def queryAnalyze():
     pass
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------
