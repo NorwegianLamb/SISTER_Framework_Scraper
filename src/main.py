@@ -20,12 +20,14 @@ import argparse
 import time
 import os
 import glob
+import shutil
 
 # --------------------------------------------- GLOBAL --------------------------------------------------------------------------------------------------
 
 # Select current dir
 current_directory = os.getcwd()
 download_directory = os.path.join(current_directory, 'data')
+renamed_directory = os.path.join(download_directory, 'renamed')
 
 # Headless chrome browser + OPTIONS() settings + base_url
 chrome_options = Options()
@@ -47,13 +49,23 @@ def awaitDownloadedFile():
         all_files = glob.glob(os.path.join(download_directory, '*'))
         if any(f.endswith('.crdownload') for f in all_files):
             # .crdownload file exists, indicating the download is in progress
-            time.sleep(1)  # Wait for 1 second before checking again
+            time.sleep(1)
         elif any(f.endswith('.pdf') for f in all_files):
             # .pdf file exists, indicating the download is complete
             file_downloaded = True
         else:
-            time.sleep(1)  # Wait for 1 second before checking again
+            time.sleep(1)
     return file_downloaded
+
+def renameLastDownload(nota):
+    pdf_files = [f for f in glob.glob(os.path.join(download_directory, '*.pdf'))]
+    pdf_file = pdf_files[0]
+    new_filename = f"nota-{nota}.pdf"
+    new_file_path = os.path.join(download_directory, new_filename)
+    os.rename(pdf_file, new_file_path)
+
+    renamed_file_path = os.path.join(renamed_directory, new_filename)
+    shutil.move(new_file_path, renamed_file_path)
 
 # --------------------------------------------- LOGIN/LOGOUT FUNCTIONS --------------------------------------------------------------------------------------------------
 
@@ -243,6 +255,9 @@ def queryDownload(nota):
     finally:
         check_nota.click()
     # request the document
+
+    # LOOP FOR CASES LIKE NOTA°15, NOTA°19 -> multiple files
+
     visura_nota = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input')
     visura_nota.click()
     # wait for it to load and save it
@@ -252,8 +267,9 @@ def queryDownload(nota):
         )
     finally:
         save_doc.click()
-        """if(awaitDownloadedFile()):
-            queryAnalyze()"""
+        if(awaitDownloadedFile()):
+            renameLastDownload(nota)
+            queryAnalyze()
 
     # Exit DOC_DOWNLOAD_SECTION
     back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
