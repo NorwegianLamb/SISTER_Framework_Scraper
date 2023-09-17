@@ -14,6 +14,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 # Other LIBS
+import re
+from pdfminer.high_level import extract_text
 import requests
 from bs4 import BeautifulSoup
 import argparse
@@ -271,15 +273,19 @@ def queryDownload(nota):
         save_doc.click()
         if(awaitDownloadedFile()):
             renameLastDownload(nota)
-            queryAnalyze()
+            queryAnalyze(nota)
 
     # Exit DOC_DOWNLOAD_SECTION
     back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
     back_to_notes.click()
     
 
-def queryAnalyze():
-    pass
+def queryAnalyze(nota):
+    # REGEX to match "Unità immobiliare" and "Intestati" sections -> literally my nightmare
+    unita_immobiliare_pattern = re.compile(r'Unità immobiliare n\.(\d+) Trasferita\n\nDati identificativi\n\n(.*?)\n\n', re.DOTALL)
+    intestati_pattern = re.compile(r'(\d+)\. (.*?)\n\nDiritto di: (.*?)\n', re.DOTALL)
+    file_path = os.path.join(renamed_directory, f'nota-{nota}.pdf')
+    
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------
 

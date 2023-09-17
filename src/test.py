@@ -1,22 +1,62 @@
-import re #regex
+import re
 import os
-from pdfminer.high_level import extract_pages, extract_text
+from pdfminer.high_level import extract_text
 
-nota = "000004"
+# REGEX to match "Unità immobiliare" and "Intestati" sections
+unita_immobiliare_pattern = re.compile(r'Unità immobiliare n\.(\d+) Trasferita\n\nDati identificativi\n\n(.*?)\n\n', re.DOTALL)
+intestati_pattern = re.compile(r'(\d+)\. (.*?)\n\nDiritto di: (.*?)\n', re.DOTALL)
 
+def extract_data_from_pdf(pdf_path):
+    text = extract_text(pdf_path)
+
+    # extract "unità immobiliare"
+    unita_immobiliare_matches = unita_immobiliare_pattern.findall(text)
+    unita_immobiliare_data = []
+    for match in unita_immobiliare_matches:
+        unita_immobiliare_number = match[0]
+        unita_immobiliare_info = match[1].strip()
+        unita_immobiliare_data.append({
+            'Unita Immobile Number': unita_immobiliare_number,
+            'Info': unita_immobiliare_info # should I keep this?
+        })
+
+    # extract "intestati"
+    intestati_matches = intestati_pattern.findall(text)
+    intestati_data = {}
+    for match in intestati_matches:
+        intestato_number = match[0]
+        intestato_info = match[1].strip() # should prob. choose better names
+        diritto_di_proprieta = match[2].strip() # strip again to get only from x/y to the end of line (in case of special divisions)
+        intestati_data[intestato_number] = {
+            'Intestato Info': intestato_info,
+            'Diritto di Proprieta': diritto_di_proprieta
+        }
+
+    return unita_immobiliare_data, intestati_data
+
+nota = "000014"
 current_directory = os.getcwd()
 download_directory = os.path.join(current_directory, 'data')
 renamed_directory = os.path.join(download_directory, 'renamed')
 file_path = os.path.join(renamed_directory, f'nota-{nota}.pdf')
 
-# from what I see here we will have to REGEX the 'unità immobiliare n.{regex express}' and loop them to save them
-# we should do the same with the 'intestati -> {num}. [text]'
+unita_immobiliare_data, intestati_data = extract_data_from_pdf(file_path)
 
-text = extract_text(file_path)
+# print the data
+for unita_immobile in unita_immobiliare_data:
+    print(f"Unità Immobile Number: {unita_immobile['Unita Immobile Number']}")
+    print(f"Info: {unita_immobile['Info']}")
+    print()
 
-#here comes my nightmare: regex
-pattern = re.compile(r"Unità immobiliare")
-matches = pattern.findall(text)
+for intestato_number, intestato_info in intestati_data.items():
+    print(f"Intestato Number: {intestato_number}")
+    print(f"Intestato Info: {intestato_info['Intestato Info']}")
+    print(f"Diritto di Proprieta: {intestato_info['Diritto di Proprieta']}")
+    print()
+
+
+
+
 """
 WHAT DO WE NEED FROM THAT FILE?
 
@@ -30,8 +70,3 @@ WHAT DO WE NEED FROM THAT FILE?
         -> n.1, n.2, ..., n.<num>
             -> SALVA NOME, CF, DIRITTO DI PROPRIETA' -> da qui capire chi ha il maggior diritto e filtri finali
 """
-
-
-print(matches)
-
-# currently not needed an IMAGE extractor, only text is sufficient, maybe parse the images in the PDF so we can delete useless info?
