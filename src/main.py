@@ -660,22 +660,34 @@ def saveCSV(td_info, name, cf, info_immobile):
                      'Repertorio', 'Causale', 'In atti dal', 
                      'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
                      'C.F.', 'Indirizzo Immobile', 'Altri Immobili']
-    sample_data = [
-        td_info['numero'], td_info['prog'], td_info['anno'], td_info['datevalide'], td_info['repertorio'], 
-        td_info['causale'], td_info['inattodal'], td_info['descrizione'], "SI", name, cf, info_immobile[0]]
+
+    data = {
+        custom_header[0]: td_info['numero'],
+        custom_header[1]: td_info['prog'],
+        custom_header[2]: td_info['anno'],
+        custom_header[3]: td_info['datevalide'],
+        custom_header[4]: td_info['repertorio'],
+        custom_header[5]: td_info['causale'],
+        custom_header[6]: td_info['inattodal'],
+        custom_header[7]: "SI",
+        custom_header[8]: name,
+        custom_header[9]: cf
+    }
+
+    if len(info_immobile) > 0:
+        data[custom_header[10]] = info_immobile[0][0]  # Access the first element and make it a string
+    else:
+        data[custom_header[10]] = "???"
+
     if len(info_immobile) > 1:
-        sample_data.extend(info_immobile[1:])
+        # Concatenate 'Altri Immobili' into a single string separated by '|'
+        data[custom_header[11]] = '  |  '.join([' '.join(sublist) for sublist in info_immobile[1:]])
+    else:
+        data[custom_header[11]] = ""
 
-    with open(csv_file, 'w', newline='') as csvfile:
-        # Create a CSV writer object
-        csv_writer = csv.writer(csvfile)
-
-        # Write the custom header to the CSV file
-        csv_writer.writerow(custom_header)
-
-        # Iterate through the sample data and write each row to the CSV file
-        for row in sample_data:
-            csv_writer.writerow(row)
+    print(data)
+    df = pd.DataFrame(data, index=[0])
+    df.to_csv('output.csv', index=False, header=True)
     # extra
     print(f"Link to PDF: (x)")
 
