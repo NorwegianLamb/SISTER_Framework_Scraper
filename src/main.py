@@ -518,11 +518,6 @@ def queryInspect():
     saveCSV(td_info, analyzedNote[1], analyzedNote[2], info_immobile) # save to CSV
 
 
-
-def confirmImmobili():
-    pass
-
-
 def queryDownload(nota):
     try:
         check_nota = WebDriverWait(driver, 20).until(
