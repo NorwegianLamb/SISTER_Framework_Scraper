@@ -15,7 +15,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 # Other LIBS
 import re
+import pandas as pd
+import csv
 from pdfminer.high_level import extract_text
+from fractions import Fraction
+from codicefiscale import codicefiscale
 import requests
 from bs4 import BeautifulSoup
 import argparse
@@ -219,7 +223,14 @@ def queryFind(n, N):
             )
         finally:
             if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source):
-                pass
+                try:
+                    undo_button = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+                    )
+                finally:
+                    pass
+                # "indietro" after entering the "note" page
+                # undo_button.click()
             else:
                 print(f"Nota trovata: {n}")
                 print("-----------------------------------------------------------------------------")
@@ -231,8 +242,11 @@ def queryFind(n, N):
                     )
                 finally:
                     pass
+            # "indietro" after entering the "note" page
             undo_button.click()
         n += 1
+
+
 
 def queryInspect():
     # save the INFO-table to start saving data for the CSV/EXCEL file
@@ -241,14 +255,266 @@ def queryInspect():
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr'))
         )
     finally:
-        td_headers = ["tipo","numero","prog","anno","datevalide","repertorio","causale","inattodal","descrizione"]
+        td_headers = ["numero","prog","anno","datevalide","repertorio","causale","inattodal","descrizione"]
+        td_info = {}
         for header in td_headers:
             td_element = driver.find_element(By.CSS_SELECTOR, f'td[headers="{header}"]')
-            print(f"{header}: {td_element.text}")
+            td_info[header] = td_element.text
         # download and rename the doc
-        queryDownload(driver.find_element(By.CSS_SELECTOR, f'td[headers="numero"]').text)
         # queryDownload() could return all the ANALYZED info in the PDF file and add them to td_headers for loop text -> FULL LINE EXCEL
         # + HYPERLINK TO FILE after downloaded, so it would make sense to do it in this order: INSPECT-DOWNLOAD-ANALYZE-PARSE (need to write this func)-back here -> save excel
+    analyzedNote = queryDownload(driver.find_element(By.CSS_SELECTOR, f'td[headers="numero"]').text)
+    check_immobili = []
+    for unita_immobile in analyzedNote[0]:
+        check_immobili.append([unita_immobile['Info']['Foglio'], unita_immobile['Info']['Particella'],unita_immobile['Info']['Subalterno']])
+
+    info_immobile = []
+    #---
+    if(analyzedNote[4] == True):
+        pass
+        #here in case MANUAL CHECK (just add line to csv)
+    elif(analyzedNote[3] == False): # persona_fisica
+        try:
+            persona_fisica = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[1]/a'))
+            )
+        finally:
+            persona_fisica.click()
+        # click on radio_checkbox "Codice fiscale:"
+        try:
+            cf_radio = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table[3]/tbody/tr[9]/td[1]/input'))
+            )
+        finally:
+            cf_radio.click()
+            cf_textbox = driver.find_element(By.NAME, 'cod_fisc_pf')
+            cf_textbox.send_keys(str(analyzedNote[2]))
+            cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/p/input[4]')
+            cf_sendinput.click()
+        # after clicking on check, inspect if CF/CI
+        try:
+            radio_check_cf = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody/tr[2]/td[1]/input'))
+            )
+        finally:
+            radio_check_cf.click()
+            immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
+            immobili_submit.click()
+        # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
+        try:
+            foglio_element = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
+            )
+        finally:
+            data_dict = {}
+            classes_to_extract = ['rigascura', 'rigachiara']
+
+            # Initialize a variable to alternate between classes
+            current_class_index = 0
+
+            # Iterate through rows alternately based on class
+            for _ in range(len(classes_to_extract)):
+                # Get the current class name
+                current_class = classes_to_extract[current_class_index]
+                
+                # Find rows with the current class name
+                rows = driver.find_elements(By.XPATH, f"//tr[@class='{current_class}']")
+                
+                # Initialize an empty list for the current class
+                class_data_list = []
+                
+                # Iterate through the rows and extract the desired <td> elements
+                for row in rows:
+                    # Initialize a list for this row
+                    row_data = []
+                    ubif_data = []
+                    # Find the <td> elements with the desired headers
+                    headers_to_extract = ['fogliotipo', 'partnum', 'subanno']
+                    for header in headers_to_extract:
+                        td_element = row.find_element(By.XPATH, f"./td[@headers='{header}']")
+                        row_data.append(int(td_element.text))
+                    if(row_data in check_immobili):
+                        ubif_headers = ['ubicazione', 'classamento', 'consis']
+                        for header_u in ubif_headers:
+                            ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
+                            ubif_data.append(ubif_element.text)
+                        info_immobile.append(ubif_data)
+                        
+                    # Append the row data to the class data list
+                    class_data_list.append(row_data)
+                
+                # Add the class data list to the main dictionary
+                data_dict[current_class] = class_data_list
+                
+                # Toggle to the next class index (0 or 1)
+                current_class_index = 1 - current_class_index
+        #-----------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------------
+        # --- BACK TO NOTE ----------
+        driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
+
+        # Inserting NOTE info ----------------------------------------------------------------------------------------------------
+        try:
+            selezione_comune = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
+            )
+        finally:
+            select_element_2 = Select(selezione_comune)
+            select_element_2.select_by_value('F205#MILANO#0#0')
+            anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
+            anno_input.send_keys('2023')
+            scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
+            scegli_tipologia.click()
+
+        try:
+            selezione_voltura = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
+            )
+        finally:
+            select_element_3 = Select(selezione_voltura)
+            select_element_3.select_by_value('01')
+        try:
+            input_nota = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
+            )
+        finally:
+            input_nota.clear()
+            input_nota.send_keys(td_info["numero"])
+            driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
+        # CHECK if the NOTE exists:
+        try:
+            undo_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+            )
+        finally:
+            pass
+        #-----------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------------
+    elif(analyzedNote[3] == True): # persona_giur
+        try:
+            persona_giuridica = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[2]/a'))
+            )
+        finally:
+            persona_giuridica.click()
+        # click on radio_checkbox "Codice fiscale:"
+        try:
+            cf_radio = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table/tbody/tr/td/table[5]/tbody/tr/td[1]/input'))
+            )
+        finally:
+            cf_radio.click()
+            cf_textbox = driver.find_element(By.NAME, 'cod_fisc')
+            cf_textbox.send_keys(str(analyzedNote[2]))
+            cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[5]')
+            cf_sendinput.click()
+        # after clicking on check, inspect if CF/CI
+        try:
+            radio_check_cf = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input'))
+            )
+        finally:
+            radio_check_cf.click()
+            immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
+            immobili_submit.click()
+        # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
+        try:
+            foglio_element = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
+            )
+        finally:
+            data_dict = {}
+            classes_to_extract = ['rigascura', 'rigachiara']
+
+            # Iterate through the classes and extract data
+            for current_class in classes_to_extract:
+                try:
+                    # Find rows with the current class name
+                    rows = driver.find_elements(By.XPATH, f"//tr[@class='{current_class}']")
+                    
+                    # Initialize an empty list for the current class
+                    class_data_list = []
+                    
+                    # Iterate through the rows and extract the desired <td> elements
+                    for row in rows:
+                        # Initialize a list for this row
+                        row_data = []
+                        ubif_data = []
+                        # Find the <td> elements with the desired headers
+                        headers_to_extract = ['fogliotipo', 'partnum', 'subanno']
+                        for header in headers_to_extract:
+                            td_element = row.find_element(By.XPATH, f"./td[@headers='{header}']")
+                            row_data.append(int(td_element.text))
+                        if(row_data in check_immobili):
+                            ubif_headers = ['ubicazione', 'classamento', 'consis']
+                            for header_u in ubif_headers:
+                                ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
+                                ubif_data.append(ubif_element.text)
+                            info_immobile.append(ubif_data)
+                            
+                        # Append the row data to the class data list
+                        class_data_list.append(row_data)
+                    
+                    # Add the class data list to the main dictionary
+                    data_dict[current_class] = class_data_list
+                
+                except Exception as e:
+                    # Handle cases where the class is not found (e.g., it doesn't exist)
+                    print(f"Error processing '{current_class}' class: {str(e)}")
+
+            # Print the resulting data dictionary
+            for class_name, class_data_list in data_dict.items():
+                print(f'{class_name}:')
+                for i, row_data in enumerate(class_data_list, 1):
+                    print(f'  Row {i}: {row_data}')
+                    #--------------------------------------------
+        # --- BACK TO NOTE ----------
+        driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
+
+        # Inserting NOTE info ----------------------------------------------------------------------------------------------------
+        try:
+            selezione_comune = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
+            )
+        finally:
+            select_element_2 = Select(selezione_comune)
+            select_element_2.select_by_value('F205#MILANO#0#0')
+            anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
+            anno_input.send_keys('2023')
+            scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
+            scegli_tipologia.click()
+
+        try:
+            selezione_voltura = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
+            )
+        finally:
+            select_element_3 = Select(selezione_voltura)
+            select_element_3.select_by_value('01')
+        try:
+            input_nota = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
+            )
+        finally:
+            input_nota.clear()
+            input_nota.send_keys(td_info["numero"])
+            driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
+        # CHECK if the NOTE exists:
+        try:
+            undo_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+            )
+        finally:
+            pass
+    #---
+    #---
+    #---
+    print(td_info, analyzedNote[1], analyzedNote[2], check_immobili, info_immobile)
+
+
+
+def confirmImmobili():
+    pass
 
 
 def queryDownload(nota):
@@ -266,19 +532,24 @@ def queryDownload(nota):
     visura_nota.click()
     # wait for it to load and save it
     try:
-        save_doc = WebDriverWait(driver, 20).until(
+        save_doc = WebDriverWait(driver, 25).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[1]/td[1]/input'))
         )
     finally:
-        save_doc.click()
-        if(awaitDownloadedFile()):
-            renameLastDownload(nota)
-            #queryAnalyze(nota)
-
-    # Exit DOC_DOWNLOAD_SECTION
-    back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
-    back_to_notes.click()
-    
+        if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source):
+                return([[],
+                        "MANUAL CHECK", # nome max
+                        "MANUAL CHECK",
+                        True])
+        else:
+            save_doc.click()
+            if(awaitDownloadedFile()):
+                renameLastDownload(nota)
+                # EXIT DOWNLOAD SEC + analyze downloaded note
+                back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
+                back_to_notes.click()
+                return queryAnalyze(nota)
+        
 
 def queryAnalyze(nota):
     # REGEX to match "Unità immobiliare" and "Intestati" sections -> literally my nightmare
@@ -286,11 +557,14 @@ def queryAnalyze(nota):
     intestati_pattern = re.compile(r'(\d+)\. (.*?)\n\nDiritto di: (.*?)\n', re.DOTALL)
     file_path = os.path.join(renamed_directory, f'nota-{nota}.pdf')
 
+    def convert_fraction_to_float(fraction_str):
+        try:
+            return float(Fraction(fraction_str))
+        except ValueError:
+            return None
+
     # extract data and analyze it
     text = extract_text(file_path)
-    unita_immobiliare_matches = unita_immobiliare_pattern.findall(text)
-    unita_immobiliare_data = []
-    # extract "unità immobiliare"
     unita_immobiliare_matches = unita_immobiliare_pattern.findall(text)
     unita_immobiliare_data = []
     for match in unita_immobiliare_matches:
@@ -321,14 +595,74 @@ def queryAnalyze(nota):
             'nome': intestato_info_match.group(1).strip() if intestato_info_match else '',
             'CF': cf_match.group(1).strip() if cf_match else ''
         }
+        # Extract "Diritto di Proprieta" information and convert to float
+        diritto_di_proprieta_match = re.search(r'(\d+/\d+)', diritto_di_proprieta)
+        diritto_di_proprieta_value = diritto_di_proprieta_match.group(1) if diritto_di_proprieta_match else ''
+        diritto_di_proprieta_float = convert_fraction_to_float(diritto_di_proprieta_value)
         intestati_data[intestato_number] = {
             'Intestato Info': intestato_info_dict,
-            'Diritto di Proprieta': diritto_di_proprieta
+            'Diritto di Proprieta': diritto_di_proprieta_float
         }
 
+    manualCheck_noCF = False
+    companyCF = False
+    for intestato_number, intestato_info in intestati_data.items():
+        cf_value = intestato_info['Intestato Info']['CF']
+        if not cf_value:
+            manualCheck_noCF = True
+
+    for intestato_number, intestato_info in intestati_data.items():
+        try:
+            birthdate = codicefiscale.decode(cf_value)['birthdate']
+        except ValueError:
+            companyCF = True
+
+    if(manualCheck_noCF):
+        print("MANUAL CHECK FILE")
+        return [unita_immobiliare_data, # unità immobiliari
+            "MANUAL CHECK", # nome max
+            "MANUAL CHECK",
+            companyCF,
+            True] # CF/PI max
+    elif(companyCF):
+        max_share = 0
+        chosen_intestato = None
+        for intestato_number, intestato_info in intestati_data.items():
+            share = intestato_info['Diritto di Proprieta']
+            if share > max_share or share == max_share:
+                max_share = share
+                chosen_intestato = intestato_info
+    else:
+        max_share = 0
+        oldest_birthdate = None
+        chosen_intestato = None
+
+        for intestato_number, intestato_info in intestati_data.items():
+            share = intestato_info['Diritto di Proprieta']
+            if intestato_info['Intestato Info']['CF']:
+                birthdate = codicefiscale.decode(intestato_info['Intestato Info']['CF'])['birthdate']
+            else:
+                birthdate = None
+            
+            if share > max_share or (share == max_share and birthdate and birthdate < oldest_birthdate):
+                max_share = share
+                oldest_birthdate = birthdate
+                chosen_intestato = intestato_info
     # ---- end of query
+    return [unita_immobiliare_data, # unità immobiliari
+            chosen_intestato['Intestato Info']['nome'], # nome max
+            chosen_intestato['Intestato Info']['CF'],
+            companyCF,
+            False] # CF/PI max
 
 def printExcel():
+    df = pd.DataFrame()
+    custom_header = ['N. PROG.', 'Prog', 'Date validità', 
+                     'Repertorio', 'Causale', 'In atti dal', 
+                     'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
+                     'C.F.', 'SI', 'tipologia immobile',
+                     'Indirizzo Immobile', 'Altri Immobili', '']
+    df.to_excel('output.xlsx', index=False, na_rep='N/A', header=custom_header, index_label='ID')
     # da fare:
     """
     1) estrarre gli intestati e metterli in un [1,2,3,...]
