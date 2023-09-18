@@ -30,6 +30,12 @@ import shutil
 
 # --------------------------------------------- GLOBAL --------------------------------------------------------------------------------------------------
 
+custom_header = ['N. PROG.', 'Prog', 'Date validità', 
+                    'Repertorio', 'Causale', 'In atti dal', 
+                    'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
+                    'C.F.', 'Indirizzo Immobile', 'Altri Immobili']
+df = pd.DataFrame(columns=custom_header)
+
 # Select current dir
 current_directory = os.getcwd()
 download_directory = os.path.join(current_directory, 'data')
@@ -341,7 +347,7 @@ def queryInspect():
                             ubif_data.append(ubif_element.text)
                         info_immobile.append(ubif_data)
                     else:
-                        info_immobile.append("UNITA' DIFFERENTE DALLA NOTA TROVATA")
+                        info_immobile.append(["UNITA' DIFFERENTE DALLA NOTA TROVATA"])
                         
                     # Append the row data to the class data list
                     class_data_list.append(row_data)
@@ -455,7 +461,7 @@ def queryInspect():
                                 ubif_data.append(ubif_element.text)
                             info_immobile.append(ubif_data)
                         else:
-                            info_immobile.append("UNITA' DIFFERENTE DALLA NOTA TROVATA")
+                            info_immobile.append(["UNITA' DIFFERENTE DALLA NOTA TROVATA"])
                             
                         # Append the row data to the class data list
                         class_data_list.append(row_data)
@@ -656,11 +662,6 @@ def queryAnalyze(nota):
             False] # CF/PI max
 
 def saveCSV(td_info, name, cf, info_immobile):
-    custom_header = ['N. PROG.', 'Prog', 'Date validità', 
-                     'Repertorio', 'Causale', 'In atti dal', 
-                     'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
-                     'C.F.', 'Indirizzo Immobile', 'Altri Immobili']
-
     data = {
         custom_header[0]: td_info['numero'],
         custom_header[1]: td_info['prog'],
@@ -685,9 +686,7 @@ def saveCSV(td_info, name, cf, info_immobile):
     else:
         data[custom_header[11]] = ""
 
-    print(data)
-    df = pd.DataFrame(data, index=[0])
-    df.to_csv('output.csv', index=False, header=True)
+    df.loc[len(df)] = data
     # extra
     print(f"Link to PDF: (x)")
 
@@ -703,15 +702,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     login(args.username, args.password)
     queryFind(args.numstart, args.numend)
+    df.to_csv('output.csv', index=False)
     FW_logout()
 
-# -------------------------------------- USEFUL to keep ------------------------------------------------------------------------------------------------------
-
-"""
-try:
-        username_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "userName"))
-        )
-    finally:
-        print("found")
-"""
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------
