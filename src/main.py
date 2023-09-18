@@ -273,7 +273,7 @@ def queryDownload(nota):
         save_doc.click()
         if(awaitDownloadedFile()):
             renameLastDownload(nota)
-            queryAnalyze(nota)
+            #queryAnalyze(nota)
 
     # Exit DOC_DOWNLOAD_SECTION
     back_to_notes = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[2]/td/form/input[3]')
@@ -285,7 +285,91 @@ def queryAnalyze(nota):
     unita_immobiliare_pattern = re.compile(r'Unità immobiliare n\.(\d+) Trasferita\n\nDati identificativi\n\n(.*?)\n\n', re.DOTALL)
     intestati_pattern = re.compile(r'(\d+)\. (.*?)\n\nDiritto di: (.*?)\n', re.DOTALL)
     file_path = os.path.join(renamed_directory, f'nota-{nota}.pdf')
-    
+
+    # extract data and analyze it
+    text = extract_text(file_path)
+    unita_immobiliare_matches = unita_immobiliare_pattern.findall(text)
+    unita_immobiliare_data = []
+    # extract "unità immobiliare"
+    unita_immobiliare_matches = unita_immobiliare_pattern.findall(text)
+    unita_immobiliare_data = []
+    for match in unita_immobiliare_matches:
+        unita_immobiliare_number = match[0]
+        unita_immobiliare_info = match[1].strip()
+        # Extract additional information using regex
+        unita_immobiliare_info_dict = {
+            'Catasto': re.search(r'Catasto (.*?) -', unita_immobiliare_info).group(1).strip(),
+            'Foglio': int(re.search(r'Foglio (\d+)', unita_immobiliare_info).group(1)),
+            'Particella': int(re.search(r'Particella (\d+)', unita_immobiliare_info).group(1)),
+            'Subalterno': int(re.search(r'Subalterno (\d+)', unita_immobiliare_info).group(1))
+        }
+        unita_immobiliare_data.append({
+            'Unita Immobile Number': unita_immobiliare_number,
+            'Info': unita_immobiliare_info_dict
+        })
+    # extract "intestati" -> this whole section could be taken after getting foglio,particella,sub
+    intestati_matches = intestati_pattern.findall(text)
+    intestati_data = {}
+    for match in intestati_matches:
+        intestato_number = match[0]
+        intestato_info = match[1].strip()
+        diritto_di_proprieta = match[2].strip()
+        # Extract additional information from "Intestato Info"
+        intestato_info_match = re.search(r'^([^()]+)', intestato_info)
+        cf_match = re.search(r'\(CF (.*?)\)', intestato_info)
+        intestato_info_dict = {
+            'nome': intestato_info_match.group(1).strip() if intestato_info_match else '',
+            'CF': cf_match.group(1).strip() if cf_match else ''
+        }
+        intestati_data[intestato_number] = {
+            'Intestato Info': intestato_info_dict,
+            'Diritto di Proprieta': diritto_di_proprieta
+        }
+
+    # ---- end of query
+
+def printExcel():
+    # da fare:
+    """
+    1) estrarre gli intestati e metterli in un [1,2,3,...]
+        -> clean file extraction
+        -> think for cases like words with accents and so on
+        -> filter extra data
+    2) prendere l'intestatario con più quote (filter)
+        -> create func to filter the quotes
+        -> how to display in case m/f? (in case twins -> write it UPPERCASE so manual double check)
+        -> double check both FISICO and GIURIDICO   
+    3) loop per ogni immobile e if(intestato[immobile] in [intestati]) 
+        -> what if there is an immobile that belongs to other ppl from the intestati and not the one with the highest quotes?
+        -> what if intestati/immobili don't match?
+        -> dioporco
+    4) se immobile/i all'intestatario -> tutte le info necessarie dell'immobile
+    """
+
+    # prima parte excel, preso dopo aver scritto la nota e cliccato su "cerca nota"
+    print(f"N. PROG: (numero nota)")
+    print(f"Prog: (x)")
+    print(f"Anno: (x)")
+    print(f"Date validità: (x)")
+    print(f"Repertorio: (x)")
+    print(f"Causale: (x)")
+    print(f"In atti dal: (x)")
+    print(f"Descrizione: (x)")
+    print(f"?? Da sviluppare SI/NO ??")
+    # download -> check immobili su "immobile" -> intestati -> (FILTER FUNC. (highest quotes -> m/f (idk how to do this) -> oldest))
+    print(f"Nome e cognome: (filtered x)")
+    print(f"Codice fiscale: (filtered x)")
+    print(f"IN CASE of not same INTESTATARIO: No (in another column)")
+    # loop all of its IMMOBILI and search them on "Immobili" to gather next info
+    print(f"Ubicazione: (x)")
+    print(f"Classamento/Consistenza: (x)")
+    print(f"Altre ubicazioni: (x)")
+
+    # extra
+    print(f"Link to PDF: (x)")
+
+def filterIntestati():
+    pass
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------
 
