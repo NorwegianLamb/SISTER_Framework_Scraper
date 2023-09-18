@@ -1,7 +1,7 @@
 ''' 
 Author: Flavio Gjoni
 Description: Automated scraper for the SISTER framework, it gathers the PDF files for property successions and parse them
-Version: 1.1x
+Version: 1.2x
 '''
 
 # Selenium LIBS
