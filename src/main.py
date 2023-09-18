@@ -34,6 +34,7 @@ import shutil
 current_directory = os.getcwd()
 download_directory = os.path.join(current_directory, 'data')
 renamed_directory = os.path.join(download_directory, 'renamed')
+csv_file = os.path.join(current_directory, 'output.csv')
 
 # Headless chrome browser + OPTIONS() settings + base_url
 chrome_options = Options()
@@ -339,6 +340,8 @@ def queryInspect():
                             ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
                             ubif_data.append(ubif_element.text)
                         info_immobile.append(ubif_data)
+                    else:
+                        info_immobile.append("UNITA' DIFFERENTE DALLA NOTA TROVATA")
                         
                     # Append the row data to the class data list
                     class_data_list.append(row_data)
@@ -451,6 +454,8 @@ def queryInspect():
                                 ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
                                 ubif_data.append(ubif_element.text)
                             info_immobile.append(ubif_data)
+                        else:
+                            info_immobile.append("UNITA' DIFFERENTE DALLA NOTA TROVATA")
                             
                         # Append the row data to the class data list
                         class_data_list.append(row_data)
@@ -461,13 +466,8 @@ def queryInspect():
                 except Exception as e:
                     # Handle cases where the class is not found (e.g., it doesn't exist)
                     print(f"Error processing '{current_class}' class: {str(e)}")
-
-            # Print the resulting data dictionary
-            for class_name, class_data_list in data_dict.items():
-                print(f'{class_name}:')
-                for i, row_data in enumerate(class_data_list, 1):
-                    print(f'  Row {i}: {row_data}')
-                    #--------------------------------------------
+        #--------------------------------------------
+        #--------------------------------------------
         # --- BACK TO NOTE ----------
         driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
 
@@ -509,7 +509,7 @@ def queryInspect():
     #---
     #---
     #---
-    print(td_info, analyzedNote[1], analyzedNote[2], check_immobili, info_immobile)
+    saveCSV(td_info, analyzedNote[1], analyzedNote[2], info_immobile) # save to CSV
 
 
 
@@ -655,55 +655,30 @@ def queryAnalyze(nota):
             companyCF,
             False] # CF/PI max
 
-def printExcel():
-    df = pd.DataFrame()
+def saveCSV(td_info, name, cf, info_immobile):
     custom_header = ['N. PROG.', 'Prog', 'Date validità', 
                      'Repertorio', 'Causale', 'In atti dal', 
                      'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
-                     'C.F.', 'SI', 'tipologia immobile',
-                     'Indirizzo Immobile', 'Altri Immobili', '']
-    df.to_excel('output.xlsx', index=False, na_rep='N/A', header=custom_header, index_label='ID')
-    # da fare:
-    """
-    1) estrarre gli intestati e metterli in un [1,2,3,...]
-        -> clean file extraction
-        -> think for cases like words with accents and so on
-        -> filter extra data
-    2) prendere l'intestatario con più quote (filter)
-        -> create func to filter the quotes
-        -> how to display in case m/f? (in case twins -> write it UPPERCASE so manual double check)
-        -> double check both FISICO and GIURIDICO   
-    3) loop per ogni immobile e if(intestato[immobile] in [intestati]) 
-        -> what if there is an immobile that belongs to other ppl from the intestati and not the one with the highest quotes?
-        -> what if intestati/immobili don't match?
-        -> dioporco
-    4) se immobile/i all'intestatario -> tutte le info necessarie dell'immobile
-    """
+                     'C.F.', 'Indirizzo Immobile', 'Altri Immobili']
+    sample_data = [
+        td_info['numero'], td_info['prog'], td_info['anno'], td_info['datevalide'], td_info['repertorio'], 
+        td_info['causale'], td_info['inattodal'], td_info['descrizione'], "SI", name, cf, info_immobile[0]]
+    if len(info_immobile) > 1:
+        sample_data.extend(info_immobile[1:])
 
-    # prima parte excel, preso dopo aver scritto la nota e cliccato su "cerca nota"
-    print(f"N. PROG: (numero nota)")
-    print(f"Prog: (x)")
-    print(f"Anno: (x)")
-    print(f"Date validità: (x)")
-    print(f"Repertorio: (x)")
-    print(f"Causale: (x)")
-    print(f"In atti dal: (x)")
-    print(f"Descrizione: (x)")
-    print(f"?? Da sviluppare SI/NO ??")
-    # download -> check immobili su "immobile" -> intestati -> (FILTER FUNC. (highest quotes -> m/f (idk how to do this) -> oldest))
-    print(f"Nome e cognome: (filtered x)")
-    print(f"Codice fiscale: (filtered x)")
-    print(f"IN CASE of not same INTESTATARIO: No (in another column)")
-    # loop all of its IMMOBILI and search them on "Immobili" to gather next info
-    print(f"Ubicazione: (x)")
-    print(f"Classamento/Consistenza: (x)")
-    print(f"Altre ubicazioni: (x)")
+    with open(csv_file, 'w', newline='') as csvfile:
+        # Create a CSV writer object
+        csv_writer = csv.writer(csvfile)
 
+        # Write the custom header to the CSV file
+        csv_writer.writerow(custom_header)
+
+        # Iterate through the sample data and write each row to the CSV file
+        for row in sample_data:
+            csv_writer.writerow(row)
     # extra
     print(f"Link to PDF: (x)")
 
-def filterIntestati():
-    pass
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------
 
