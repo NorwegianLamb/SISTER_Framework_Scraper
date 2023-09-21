@@ -676,13 +676,13 @@ def saveCSV(td_info, name, cf, info_immobile):
     }
 
     if len(info_immobile) > 0:
-        data[custom_header[10]] = info_immobile[0]  # Access the first element and make it a string
+        data[custom_header[10]] = info_immobile[0]
     else:
         data[custom_header[10]] = "???"
 
     if len(info_immobile) > 1:
         # Concatenate 'Altri Immobili' into a single string separated by '|'
-        data[custom_header[11]] = '  |  '.join([' '.join(sublist) for sublist in info_immobile[1:]])
+        data[custom_header[11]] = '  |  '.join([',  '.join(sublist) for sublist in info_immobile[1:]])
     else:
         data[custom_header[11]] = ""
 
@@ -702,7 +702,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     login(args.username, args.password)
     queryFind(args.numstart, args.numend)
-    df.to_csv('output.csv', index=False)
+    df.to_csv('output.csv', index=True)
     FW_logout()
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------
