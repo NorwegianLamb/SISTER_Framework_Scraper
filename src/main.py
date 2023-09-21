@@ -240,9 +240,12 @@ def queryFind(n, N):
                 # undo_button.click()
             else:
                 print(f"Nota trovata: {n}")
-                print("-----------------------------------------------------------------------------")
-                queryInspect()
-                print("-----------------------------------------------------------------------------\n")
+                # --------------------------------------------------------------
+                tableTest = driver.find_element(By.CSS_SELECTOR,"table.listaIsp")
+                all_rows = tableTest.find_elements(By.CSS_SELECTOR,"tbody tr")
+                # --------------------------------------------------------------
+                queryInspect(len(all_rows))
+                print("\n")
                 try:
                     undo_button = WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
@@ -255,189 +258,77 @@ def queryFind(n, N):
 
 
 
-def queryInspect():
+def queryInspect(len_rows):
     # save the INFO-table to start saving data for the CSV/EXCEL file
     try:
         note_table = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr'))
         )
     finally:
+        pass
+    for i in range(1, len_rows):
+        tableTest = driver.find_element(By.CSS_SELECTOR,"table.listaIsp")
+        all_rows = tableTest.find_elements(By.CSS_SELECTOR,"tbody tr")
+        note_row = all_rows[i]
         td_headers = ["numero","prog","anno","datevalide","repertorio","causale","inattodal","descrizione"]
         td_info = {}
         for header in td_headers:
-            td_element = driver.find_element(By.CSS_SELECTOR, f'td[headers="{header}"]')
+            td_element = note_row.find_element(By.CSS_SELECTOR, f'td[headers="{header}"]')
             td_info[header] = td_element.text
-        # download and rename the doc
-        # queryDownload() could return all the ANALYZED info in the PDF file and add them to td_headers for loop text -> FULL LINE EXCEL
-        # + HYPERLINK TO FILE after downloaded, so it would make sense to do it in this order: INSPECT-DOWNLOAD-ANALYZE-PARSE (need to write this func)-back here -> save excel
-    analyzedNote = queryDownload(driver.find_element(By.CSS_SELECTOR, f'td[headers="numero"]').text)
-    check_immobili = []
-    for unita_immobile in analyzedNote[0]:
-        check_immobili.append([unita_immobile['Info']['Foglio'], unita_immobile['Info']['Particella'],unita_immobile['Info']['Subalterno']])
+        analyzedNote = queryDownload(td_info["numero"], note_row) # (len(all_rows) > 2)
+        check_immobili = []
+        for unita_immobile in analyzedNote[0]:
+            check_immobili.append([unita_immobile['Info']['Foglio'], unita_immobile['Info']['Particella'],unita_immobile['Info']['Subalterno']])
 
-    info_immobile = []
-    #---
-    if(analyzedNote[4] == True):
-        pass
-        #here in case MANUAL CHECK (just add line to csv)
-    elif(analyzedNote[3] == False): # persona_fisica
-        try:
-            persona_fisica = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[1]/a'))
-            )
-        finally:
-            persona_fisica.click()
-        # click on radio_checkbox "Codice fiscale:"
-        try:
-            cf_radio = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table[3]/tbody/tr[9]/td[1]/input'))
-            )
-        finally:
-            cf_radio.click()
-            cf_textbox = driver.find_element(By.NAME, 'cod_fisc_pf')
-            cf_textbox.send_keys(str(analyzedNote[2]))
-            cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/p/input[4]')
-            cf_sendinput.click()
-        # after clicking on check, inspect if CF/CI
-        try:
-            radio_check_cf = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody/tr[2]/td[1]/input'))
-            )
-        finally:
-            radio_check_cf.click()
-            immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
-            immobili_submit.click()
-        # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
-        try:
-            foglio_element = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
-            )
-        finally:
-            data_dict = {}
-            classes_to_extract = ['rigascura', 'rigachiara']
-
-            # Initialize a variable to alternate between classes
-            current_class_index = 0
-
-            # Iterate through rows alternately based on class
-            for _ in range(len(classes_to_extract)):
-                # Get the current class name
-                current_class = classes_to_extract[current_class_index]
-                
-                # Find rows with the current class name
-                rows = driver.find_elements(By.XPATH, f"//tr[@class='{current_class}']")
-                
-                # Initialize an empty list for the current class
-                class_data_list = []
-                
-                # Iterate through the rows and extract the desired <td> elements
-                for row in rows:
-                    # Initialize a list for this row
-                    row_data = []
-                    ubif_data = []
-                    # Find the <td> elements with the desired headers
-                    headers_to_extract = ['fogliotipo', 'partnum', 'subanno']
-                    for header in headers_to_extract:
-                        td_element = row.find_element(By.XPATH, f"./td[@headers='{header}']")
-                        row_data.append(int(td_element.text))
-                    if(row_data in check_immobili):
-                        ubif_headers = ['ubicazione', 'classamento', 'consis']
-                        for header_u in ubif_headers:
-                            ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
-                            ubif_data.append(ubif_element.text)
-                        info_immobile.append(ubif_data)
-                    else:
-                        info_immobile.append(["UNITA' DIFFERENTE DALLA NOTA TROVATA"])
-                        
-                    # Append the row data to the class data list
-                    class_data_list.append(row_data)
-                
-                # Add the class data list to the main dictionary
-                data_dict[current_class] = class_data_list
-                
-                # Toggle to the next class index (0 or 1)
-                current_class_index = 1 - current_class_index
-        #-----------------------------------------------------------------------------------------------
-        #-----------------------------------------------------------------------------------------------
-        # --- BACK TO NOTE ----------
-        driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
-
-        # Inserting NOTE info ----------------------------------------------------------------------------------------------------
-        try:
-            selezione_comune = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
-            )
-        finally:
-            select_element_2 = Select(selezione_comune)
-            select_element_2.select_by_value('F205#MILANO#0#0')
-            anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
-            anno_input.send_keys('2023')
-            scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
-            scegli_tipologia.click()
-
-        try:
-            selezione_voltura = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
-            )
-        finally:
-            select_element_3 = Select(selezione_voltura)
-            select_element_3.select_by_value('01')
-        try:
-            input_nota = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
-            )
-        finally:
-            input_nota.clear()
-            input_nota.send_keys(td_info["numero"])
-            driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
-        # CHECK if the NOTE exists:
-        try:
-            undo_button = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
-            )
-        finally:
+        info_immobile = []
+        #---
+        if(analyzedNote[4] == True):
             pass
-        #-----------------------------------------------------------------------------------------------
-        #-----------------------------------------------------------------------------------------------
-    elif(analyzedNote[3] == True): # persona_giur
-        try:
-            persona_giuridica = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[2]/a'))
-            )
-        finally:
-            persona_giuridica.click()
-        # click on radio_checkbox "Codice fiscale:"
-        try:
-            cf_radio = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table/tbody/tr/td/table[5]/tbody/tr/td[1]/input'))
-            )
-        finally:
-            cf_radio.click()
-            cf_textbox = driver.find_element(By.NAME, 'cod_fisc')
-            cf_textbox.send_keys(str(analyzedNote[2]))
-            cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[5]')
-            cf_sendinput.click()
-        # after clicking on check, inspect if CF/CI
-        try:
-            radio_check_cf = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input'))
-            )
-        finally:
-            radio_check_cf.click()
-            immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
-            immobili_submit.click()
-        # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
-        try:
-            foglio_element = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
-            )
-        finally:
-            data_dict = {}
-            classes_to_extract = ['rigascura', 'rigachiara']
+            #here in case MANUAL CHECK (just add line to csv)
+        elif(analyzedNote[3] == False): # persona_fisica
+            try:
+                persona_fisica = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[1]/a'))
+                )
+            finally:
+                persona_fisica.click()
+            # click on radio_checkbox "Codice fiscale:"
+            try:
+                cf_radio = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table[3]/tbody/tr[9]/td[1]/input'))
+                )
+            finally:
+                cf_radio.click()
+                cf_textbox = driver.find_element(By.NAME, 'cod_fisc_pf')
+                cf_textbox.send_keys(str(analyzedNote[2]))
+                cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/p/input[4]')
+                cf_sendinput.click()
+            # after clicking on check, inspect if CF/CI
+            try:
+                radio_check_cf = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody/tr[2]/td[1]/input'))
+                )
+            finally:
+                radio_check_cf.click()
+                immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
+                immobili_submit.click()
+            # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
+            try:
+                foglio_element = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
+                )
+            finally:
+                data_dict = {}
+                classes_to_extract = ['rigascura', 'rigachiara']
 
-            # Iterate through the classes and extract data
-            for current_class in classes_to_extract:
-                try:
+                # Initialize a variable to alternate between classes
+                current_class_index = 0
+
+                # Iterate through rows alternately based on class
+                for _ in range(len(classes_to_extract)):
+                    # Get the current class name
+                    current_class = classes_to_extract[current_class_index]
+                    
                     # Find rows with the current class name
                     rows = driver.find_elements(By.XPATH, f"//tr[@class='{current_class}']")
                     
@@ -468,60 +359,174 @@ def queryInspect():
                     
                     # Add the class data list to the main dictionary
                     data_dict[current_class] = class_data_list
-                
-                except Exception as e:
-                    # Handle cases where the class is not found (e.g., it doesn't exist)
-                    print(f"Error processing '{current_class}' class: {str(e)}")
-        #--------------------------------------------
-        #--------------------------------------------
-        # --- BACK TO NOTE ----------
-        driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
+                    
+                    # Toggle to the next class index (0 or 1)
+                    current_class_index = 1 - current_class_index
+            #-----------------------------------------------------------------------------------------------
+            #-----------------------------------------------------------------------------------------------
+            # --- BACK TO NOTE ----------
+            driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
 
-        # Inserting NOTE info ----------------------------------------------------------------------------------------------------
-        try:
-            selezione_comune = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
-            )
-        finally:
-            select_element_2 = Select(selezione_comune)
-            select_element_2.select_by_value('F205#MILANO#0#0')
-            anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
-            anno_input.send_keys('2023')
-            scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
-            scegli_tipologia.click()
+            # Inserting NOTE info ----------------------------------------------------------------------------------------------------
+            try:
+                selezione_comune = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
+                )
+            finally:
+                select_element_2 = Select(selezione_comune)
+                select_element_2.select_by_value('F205#MILANO#0#0')
+                anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
+                anno_input.send_keys('2023')
+                scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
+                scegli_tipologia.click()
 
-        try:
-            selezione_voltura = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
-            )
-        finally:
-            select_element_3 = Select(selezione_voltura)
-            select_element_3.select_by_value('01')
-        try:
-            input_nota = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
-            )
-        finally:
-            input_nota.clear()
-            input_nota.send_keys(td_info["numero"])
-            driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
-        # CHECK if the NOTE exists:
-        try:
-            undo_button = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
-            )
-        finally:
-            pass
-    #---
-    #---
-    #---
-    saveCSV(td_info, analyzedNote[1], analyzedNote[2], info_immobile) # save to CSV
+            try:
+                selezione_voltura = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
+                )
+            finally:
+                select_element_3 = Select(selezione_voltura)
+                select_element_3.select_by_value('01')
+            try:
+                input_nota = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
+                )
+            finally:
+                input_nota.clear()
+                input_nota.send_keys(td_info["numero"])
+                driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
+            # CHECK if the NOTE exists:
+            try:
+                undo_button = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+                )
+            finally:
+                pass
+            #-----------------------------------------------------------------------------------------------
+            #-----------------------------------------------------------------------------------------------
+        elif(analyzedNote[3] == True): # persona_giur
+            try:
+                persona_giuridica = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="menu-left"]/li[2]/a'))
+                )
+            finally:
+                persona_giuridica.click()
+            # click on radio_checkbox "Codice fiscale:"
+            try:
+                cf_radio = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset[1]/table/tbody/tr/td/table[5]/tbody/tr/td[1]/input'))
+                )
+            finally:
+                cf_radio.click()
+                cf_textbox = driver.find_element(By.NAME, 'cod_fisc')
+                cf_textbox.send_keys(str(analyzedNote[2]))
+                cf_sendinput = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[5]')
+                cf_sendinput.click()
+            # after clicking on check, inspect if CF/CI
+            try:
+                radio_check_cf = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input'))
+                )
+            finally:
+                radio_check_cf.click()
+                immobili_submit = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[1]/input[1]')
+                immobili_submit.click()
+            # SIAMO NELLA LISTA DEGLI IMMOBILI DEL CF
+            try:
+                foglio_element = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[1]/tr/th[5]'))
+                )
+            finally:
+                data_dict = {}
+                classes_to_extract = ['rigascura', 'rigachiara']
+
+                # Iterate through the classes and extract data
+                for current_class in classes_to_extract:
+                    try:
+                        # Find rows with the current class name
+                        rows = driver.find_elements(By.XPATH, f"//tr[@class='{current_class}']")
+                        
+                        # Initialize an empty list for the current class
+                        class_data_list = []
+                        
+                        # Iterate through the rows and extract the desired <td> elements
+                        for row in rows:
+                            # Initialize a list for this row
+                            row_data = []
+                            ubif_data = []
+                            # Find the <td> elements with the desired headers
+                            headers_to_extract = ['fogliotipo', 'partnum', 'subanno']
+                            for header in headers_to_extract:
+                                td_element = row.find_element(By.XPATH, f"./td[@headers='{header}']")
+                                row_data.append(int(td_element.text))
+                            if(row_data in check_immobili):
+                                ubif_headers = ['ubicazione', 'classamento', 'consis']
+                                for header_u in ubif_headers:
+                                    ubif_element = row.find_element(By.XPATH, f"./td[@headers='{header_u}']")
+                                    ubif_data.append(ubif_element.text)
+                                info_immobile.append(ubif_data)
+                            else:
+                                info_immobile.append(["UNITA' DIFFERENTE DALLA NOTA TROVATA"])
+                                
+                            # Append the row data to the class data list
+                            class_data_list.append(row_data)
+                        
+                        # Add the class data list to the main dictionary
+                        data_dict[current_class] = class_data_list
+                    
+                    except Exception as e:
+                        # Handle cases where the class is not found (e.g., it doesn't exist)
+                        print(f"Error processing '{current_class}' class: {str(e)}")
+            #--------------------------------------------
+            #--------------------------------------------
+            # --- BACK TO NOTE ----------
+            driver.get('https://portalebanchedatij.visura.it/Visure/SceltaLink.do?lista=NOTA&codUfficio=MI')
+
+            # Inserting NOTE info ----------------------------------------------------------------------------------------------------
+            try:
+                selezione_comune = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[1]/tbody/tr[2]/td[2]/select'))
+                )
+            finally:
+                select_element_2 = Select(selezione_comune)
+                select_element_2.select_by_value('F205#MILANO#0#0')
+                anno_input = driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[2]/td[4]/input')
+                anno_input.send_keys('2023')
+                scegli_tipologia = driver.find_element("xpath", '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[1]/input')
+                scegli_tipologia.click()
+
+            try:
+                selezione_voltura = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[3]/tbody/tr/td[3]/select'))
+                )
+            finally:
+                select_element_3 = Select(selezione_voltura)
+                select_element_3.select_by_value('01')
+            try:
+                input_nota = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table[2]/tbody/tr[1]/td[2]/input'))
+                )
+            finally:
+                input_nota.clear()
+                input_nota.send_keys(td_info["numero"])
+                driver.find_element(By.XPATH, '//*[@id="colonna1"]/div[2]/form/input[1]').click()
+            # CHECK if the NOTE exists:
+            try:
+                undo_button = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/table/tbody/tr/td[2]/form/input'))
+                )
+            finally:
+                pass
+        #---
+        #---
+        #---
+        saveCSV(td_info, analyzedNote[1], analyzedNote[2], info_immobile) # save to CSV
 
 
-def queryDownload(nota):
+def queryDownload(nota, note_row):
     try:
-        check_nota = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/form/fieldset/table/tbody[2]/tr/td[1]/input[1]'))
+        check_nota = WebDriverWait(note_row, 20).until(
+            EC.presence_of_element_located((By.XPATH, './td[1]/input[1]'))
         )
     finally:
         check_nota.click()
@@ -537,7 +542,7 @@ def queryDownload(nota):
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[1]/td[1]/input'))
         )
     finally:
-        if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source):
+        if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source): # select case of document not ready
                 return([[],
                         "MANUAL CHECK", # nome max
                         "MANUAL CHECK",
@@ -671,7 +676,7 @@ def saveCSV(td_info, name, cf, info_immobile):
     }
 
     if len(info_immobile) > 0:
-        data[custom_header[10]] = info_immobile[0][0]  # Access the first element and make it a string
+        data[custom_header[10]] = info_immobile[0]  # Access the first element and make it a string
     else:
         data[custom_header[10]] = "???"
 
