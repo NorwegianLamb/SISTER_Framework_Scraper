@@ -693,6 +693,8 @@ def saveCSV(td_info, name, cf, info_immobile):
 
 # --------------------------------------------- ENTRY POINT --------------------------------------------------------------------------------------------------
 
+# ORGANIZE AND CLEAN
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated scraper for the SISTER framework, it gathers the PDF files for property successions and parses them")
     parser.add_argument("-u", "--username", required=True, help="Username for login")
