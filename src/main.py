@@ -275,7 +275,10 @@ def queryInspect(len_rows):
         for header in td_headers:
             td_element = note_row.find_element(By.CSS_SELECTOR, f'td[headers="{header}"]')
             td_info[header] = td_element.text
-        analyzedNote = queryDownload(td_info["numero"], note_row) # (len(all_rows) > 2)
+        if(len_rows > 2):
+            analyzedNote = queryDownload((str(td_info["numero"])+"_"+str(i)), note_row)
+        else:
+            analyzedNote = queryDownload(td_info["numero"], note_row)
         check_immobili = []
         for unita_immobile in analyzedNote[0]:
             check_immobili.append([unita_immobile['Info']['Foglio'], unita_immobile['Info']['Particella'],unita_immobile['Info']['Subalterno']])
