@@ -545,7 +545,7 @@ def queryDownload(nota, note_row):
             EC.presence_of_element_located((By.XPATH, '//*[@id="colonna1"]/div[2]/div[1]/table/tbody/tr[1]/td[1]/input'))
         )
     finally:
-        if("NESSUNA CORRISPONDENZA TROVATA" in driver.page_source): # select case of document not ready
+        if("ANCORA PRODOTTO CONSULTARE" in driver.page_source): # select case of document not ready
                 return([[],
                         "MANUAL CHECK", # nome max
                         "MANUAL CHECK",
@@ -635,7 +635,7 @@ def queryAnalyze(nota):
             True] # CF/PI max
     elif(companyCF):
         max_share = 0
-        chosen_intestato = None
+        chosen_intestato = ""
         for intestato_number, intestato_info in intestati_data.items():
             share = intestato_info['Diritto di Proprieta']
             if share > max_share or share == max_share:
@@ -643,15 +643,15 @@ def queryAnalyze(nota):
                 chosen_intestato = intestato_info
     else:
         max_share = 0
-        oldest_birthdate = None
-        chosen_intestato = None
+        oldest_birthdate = ""
+        chosen_intestato = ""
 
         for intestato_number, intestato_info in intestati_data.items():
             share = intestato_info['Diritto di Proprieta']
             if intestato_info['Intestato Info']['CF']:
                 birthdate = codicefiscale.decode(intestato_info['Intestato Info']['CF'])['birthdate']
             else:
-                birthdate = None
+                birthdate = ""
             
             if share > max_share or (share == max_share and birthdate and birthdate < oldest_birthdate):
                 max_share = share
