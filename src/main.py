@@ -34,13 +34,18 @@ custom_header = ['N. PROG.', 'Prog', 'Date validità',
                     'Repertorio', 'Causale', 'In atti dal', 
                     'Descrizione', 'Da Sviluppare? SI/NO', 'Nominativo', 
                     'C.F.', 'Indirizzo Immobile', 'Altri Immobili']
-df = pd.DataFrame(columns=custom_header)
 
 # Select current dir
 current_directory = os.getcwd()
 download_directory = os.path.join(current_directory, 'data')
 renamed_directory = os.path.join(download_directory, 'renamed')
 csv_file = os.path.join(current_directory, 'output.csv')
+if not os.path.exists(csv_file):
+    df = pd.DataFrame(columns=custom_header)
+    df.to_csv('output.csv', index=False)
+    df = pd.read_csv('output.csv')
+else:
+    df = pd.read_csv('output.csv')
 
 # Headless chrome browser + OPTIONS() settings + base_url
 chrome_options = Options()
@@ -715,7 +720,9 @@ def saveCSV(td_info, name, cf, info_immobile):
     else:
         data[custom_header[11]] = ""
 
-    df.loc[len(df)] = data
+    dfTemp = pd.DataFrame(columns=custom_header)
+    dfTemp.loc[len(df)] = data
+    dfTemp.to_csv('output.csv', mode='a', header=False, index=False)
     # extra
     print(f"Link to PDF: (x)")
 
@@ -733,7 +740,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     login(args.username, args.password)
     queryFind(args.numstart, args.numend)
-    df.to_csv('output.csv', index=True)
     FW_logout()
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------
