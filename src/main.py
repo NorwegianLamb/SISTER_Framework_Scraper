@@ -635,7 +635,7 @@ def queryAnalyze(nota):
             True] # CF/PI max
     elif(companyCF):
         max_share = 0
-        chosen_intestato = ""
+        chosen_intestato = None
         for intestato_number, intestato_info in intestati_data.items():
             share = intestato_info['Diritto di Proprieta']
             if share > max_share or share == max_share:
@@ -643,26 +643,52 @@ def queryAnalyze(nota):
                 chosen_intestato = intestato_info
     else:
         max_share = 0
-        oldest_birthdate = ""
-        chosen_intestato = ""
+        oldest_birthdate = None
+        chosen_intestato = None
 
         for intestato_number, intestato_info in intestati_data.items():
             share = intestato_info['Diritto di Proprieta']
             if intestato_info['Intestato Info']['CF']:
                 birthdate = codicefiscale.decode(intestato_info['Intestato Info']['CF'])['birthdate']
             else:
-                birthdate = ""
+                birthdate = None
             
             if share > max_share or (share == max_share and birthdate and birthdate < oldest_birthdate):
                 max_share = share
                 oldest_birthdate = birthdate
                 chosen_intestato = intestato_info
     # ---- end of query
-    return [unita_immobiliare_data, # unità immobiliari
-            chosen_intestato['Intestato Info']['nome'], # nome max
+    nomeTemp = None
+    cfTemp = None
+    if chosen_intestato is not None:
+        nomeTemp = chosen_intestato.get('Intestato Info', {}).get('nome')
+        cfTemp = chosen_intestato.get('Intestato Info', {}).get('CF')
+
+    if nomeTemp is None and cfTemp is None:
+        return [unita_immobiliare_data, # unità immobiliari
+            "MANUAL CHECK", # nome max
+            "MANUAL CHECK",
+            companyCF,
+            True] # CF/PI max
+    elif nomeTemp is None:
+        return [unita_immobiliare_data, # unità immobiliari
+            "MANUAL CHECK", # nome max
             chosen_intestato['Intestato Info']['CF'],
             companyCF,
-            False] # CF/PI max
+            True] # CF/PI max
+    elif cfTemp is None: 
+        return [unita_immobiliare_data, # unità immobiliari
+            nomeTemp, # nome max
+            "MANUAL CHECK",
+            companyCF,
+            True] # CF/PI max
+    else:
+        return [unita_immobiliare_data, # unità immobiliari
+                nomeTemp, # nome max
+                cfTemp,
+                companyCF,
+                False] # CF/PI max
+#-----------------------------------------------------------------------
 
 def saveCSV(td_info, name, cf, info_immobile):
     data = {
