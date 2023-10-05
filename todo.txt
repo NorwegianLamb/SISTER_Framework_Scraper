@@ -1,0 +1,16 @@
+check whether the IMM. has all the 3 values ('fogliotipo', 'partnum', 'subanno')
+    -> NO?
+        -> "void", test if it finds it or it gives problems
+        -> "???" and manual check for the Immobile
+
+if "ANCORA PRODOTTO CONSULTARE"
+    -> stop the research (it might even hours to make it work properly again)
+
+if stopped for errors
+    -> restart from the next note
+
+if CF and PI gets inverted:
+    -> if errors for library handleError + error on Persona Fisica/Giuridica switch it too
+
+if the person is dead than CF might be problematic
+    -> idk
