@@ -14,3 +14,7 @@ if CF and PI gets inverted:
 
 if the person is dead than CF might be problematic
     -> idk
+
+
+clean code and optimize it
+    -> subdivide it into sections bruv
