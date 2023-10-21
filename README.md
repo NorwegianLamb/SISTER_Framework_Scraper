@@ -7,4 +7,4 @@ It gathers the PDF files for property successions and parses them
 ```
 ./src/main.py [-h] -u USERNAME -p PASSWORD -n NUMSTART -N NUMEND
 ```
-This will automatically create the output.csv file that can be viewed with tools such as [Google Sheets](https://www.google.com/sheets/about/)
+This will automatically create the output.csv file that can be viewed with tools such as [Google Sheets](https://www.google.com/sheets/about/).
